@@ -33,12 +33,20 @@ rwlock_delete(struct rwlock *lo) {
 	return 0;
 }
 
+static void
+_mutex_unlock(void *ptr) {
+	pthread_mutex_t *mx = ptr;
+	pthread_mutex_unlock(mx);
+}
+
 int
 rwlock_rdlock(struct rwlock *lo) {
 	pthread_mutex_lock(&lo->rdlock);
+	pthread_cleanup_push(_mutex_unlock, &lo->rdlock);
 	while (lo->nreader == 0 && pthread_mutex_trylock(&lo->wrlock) == EBUSY) {
 		pthread_cond_wait(&lo->rdcond, &lo->rdlock);
 	}
+	pthread_cleanup_pop(0);
 	lo->nreader++;
 	pthread_mutex_unlock(&lo->rdlock);
 	return 0;
